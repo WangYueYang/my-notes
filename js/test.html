@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JS继承</title>
+</head>
+
+<body>
+  <script>
+    // 组合继承
+    function Father(name) {
+      this.name = name;
+      this.color = ['red', 'blue'];
+      console.log('调用了father')
+    }
+    Father.prototype.say = function () {
+      console.log('color', this.color);
+      console.log('name', this.name)
+    }
+
+    function Son(name) {
+      Father.call(this, name); // 第一次调用 Father
+    }
+    Son.prototype = new Father(); // 第二次调用 Father
+
+    var son1 = new Son('son1');
+    son1.say();
+
+    // 原型继承
+    function Object(o) {
+      function F() {};
+      F.prototype = o;
+      return new F();
+    }
+
+    var obj = {
+      names: ['haha', 'quer', 'geihei'],
+      age: 19
+    }
+
+    var sonObj1 = Object(obj);
+    console.log(sonObj1.names, '第一次打印');
+    sonObj1.names.push('aoligei');
+    sonObj1.age = 20
+    console.log(sonObj1.names, '第二次打印');
+
+    var sonObj2 = Object(obj);
+    console.log(sonObj2.names, 'sonObj2 第一次打印');
+    sonObj2.names.push('zhuliy');
+    console.log(sonObj2.names, 'sonObj2 第二次打印');
+    console.log(sonObj1.names, 'sonObj1第三次打印');
+
+    console.log(sonObj1.age, sonObj2.age)
+
+    // var person = {
+    //   name: "Van"
+    // };
+    // var anotherPerson = Object.create(person, {
+    //   name: {
+    //     value: "Louis"
+    //   }
+    // });
+    // console.log(anotherPerson.name); //"Louis"
+    // var aPerson = Object.create(person)
+    // console.log(aPerson.name)
+
+    // 寄生组合继承
+    function exted(father, child) {
+      var proto = Object(fatehr.prototype); // 通过Object方法创建一个新的对象，这个对象的原型指向需要继承的父类
+      proto.constructor = child; // Object方法中是直接通过原型继承的，proto的constructor被重写了，所以这里需要把proto的constructor指向需要继承的子类
+      child.prototype = proto; // 指定继承对象
+    }
+
+
+
+
+  </script>
+</body>
+
+</html>
