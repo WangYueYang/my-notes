@@ -264,3 +264,91 @@ export function mountComponent (
 
 之前在 `renderMixin` 函数里，就给 vue 原型上挂载了 `_render` 函数。看看里面发生了什么
 
+```js
+Vue.prototype._render = function (): VNode {
+  const vm: Component = this
+  const { render, _parentVnode } = vm.$options
+  ...
+  let vnode
+  vnode = render.call(vm._renderProxy, vm.$createElement)
+  ...
+  return vnode
+}
+```
+
+在`_render`方法里，执行了`vm.$options.render`方法，而这个方法就是在 `src/platforms/web/entry-runtime-with-compiler.js` 这个文件里的 `$mount` 方法里添加到 `options.render` 上的，还记得吗，我们回顾一下
+
+```js
+// src/platforms/web/entry-runtime-with-compiler.js
+Vue.prototype.$mount = function (el) {
+  const options = this.$options
+  const { render, staticRenderFns } = compileToFunctions(template, {
+        outputSourceRange: process.env.NODE_ENV !== 'production',
+        shouldDecodeNewlines,
+        // 意味着Vue在编译模板的时候，是否要对a标签的 href 属性值中的换行符或制表符做兼容处理。
+        shouldDecodeNewlinesForHref,
+        // options.delimiters & options.comments
+        // delimiters 默认值：["{{", "}}"]，也就是说把 vue 的 {{data}}这种双大括号模板改成 delimiters 的值，比如：delimiters:['$$','$$'] {{data}} => $$data$$
+        delimiters: options.delimiters,
+        // comments 是否保留注释 默认false 当设为 true 时，将会保留且渲染模板中的 HTML 注释。默认行为是舍弃它们。
+        comments: options.comments
+      }, this)
+  options.render = render
+}
+```
+
+## `vm._update`
+
+同样在文章的最开始我们有提到过在 `lifecycleMixin` 这个函数里面有在 `vue.prototype` 上挂载了 `_update` 方法。我们可以看一下他里面发生了什么
+
+```js
+ Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
+   const vm: Component = this
+   ...
+   if (!prevVnode) {
+     // initial render
+     vm.$el = vm.__patch__(vm.$el, vnode, hydrating, false /* removeOnly */)
+   } else {
+      // updates
+      vm.$el = vm.__patch__(prevVnode, vnode)
+    }
+   ...
+ }
+```
+
+在 `_updata` 里核心就是调用 `vm.__patch__` 方法，赋值给了 `vm.$el` 他被调用的时机分两种，一种是首次渲染时，一种是数据更新时。我们来看看 `vm.__patch__` 
+
+```js
+// src/platforms/web/runtime/index.js
+import { patch } from './patch'
+Vue.prototype.__patch__ = inBrowser ? patch : noop
+```
+
+这里判断了一下是否是浏览器环境，我们看看 `inBrowser == ture` 时的 `path`
+
+```js
+// src/platforms/web/runtime/patch.js
+import { createPatchFunction } from 'core/vdom/patch'
+export const patch: Function = createPatchFunction({ nodeOps, modules })
+```
+
+可以看到 `path` 函数是通过 `createPatchFunction` 返回的。这个方法也就赋值给了 `vm.__patch__`
+
+## `vm.__path__`
+
+```js
+export function createPatchFunction (backend) {
+  ...
+  return function patch (oldVnode, vnode, hydrating, removeOnly) {
+    ...
+    // 这里判断 oldVnode 是不是 undefined, 为 true 的话说明是第一次创建
+    if (isUndef(oldVnode)) {
+      // empty mount (likely as component), create new root element
+      createElm(vnode, insertedVnodeQueue)
+    }
+  }
+}
+```
+
+最后在 `patch` 里可以看到通过 `createElm` 创建了元素。
+
