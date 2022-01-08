@@ -352,3 +352,7 @@ export function createPatchFunction (backend) {
 
 最后在 `patch` 里可以看到通过 `createElm` 创建了元素。
 
+## 总结
+
+首先 `Vue` 会执行多个 `init` 函数，对很多东西做了初始化的处理和创建，并在 `Vue.prototype` 上挂载了各种实例和私有的方法。其中比较重要的有 `initMixin` 上挂载了 `_init`方法, `renderMixin` 上挂载了 `_render` 方法，`lifecycleMixin` 上挂载了 `_update` 方法。然后执行了 `Vue.prototype._init` 方法，执行了 `beforeCreate` 和 `created` 生命周期，最重要的是执行了 `Vue.prototype.$mount`函数开始挂载，在 `$mount` 里首先对 `$el` 和 `template` 做了判断，然后通过 `compileToFunctions` 函数拿到 `render` 方法添加到 `vm.$options` 上，再执行暂存的 `mount` 函数，在这个函数里，通过 `vm._update(vm._render())` 创建 `element` 完成挂载。并执行 `beforeMount` 和 `mounted` 生命周期。
+
