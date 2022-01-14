@@ -1,4 +1,4 @@
-# Vue2 的数据响应
+# Vue2 初始化data
 在文章开始之前，先提几个问题给自己：
 1. `Vue` 的 `data` 数据是怎么挂载到 `Vue` 对象上的，为什么我们可以直接通过 `this.xxx` 来获取到
 1. `Vue` 里的 `data` 是如何做响应式更新的
@@ -100,7 +100,89 @@ export function proxy (target: Object, sourceKey: string, key: string) {
 
 ## observer
 
+```js
+export function observe (value: any, asRootData: ?boolean): Observer | void {
+  let ob: Observer | void
+  ob = new Observer(value)
+  return ob
+}
+```
 
+在 `observe` 函数中最核心的步骤就是 `new Observer` 并且把我们的 `data` 传递进去。
+
+## Observer 对象
+
+在 `Observer` 这个对象里主要做的事情就是把传入的 `value` 变成响应式数据，通过 `Object.defineProperty 监听 `get set` `我们来看看 `Observer` 里做了什么事情。
+
+```js
+// src/core/observer/index.js
+export class Observer {
+  value: any;
+  dep: Dep;
+  vmCount: number; 
+	constructor (value: any) {
+    this.value = value
+    // src/core/util/lang.js def
+    // 在 value 上定义 __ob__ 属性，参数是 Observert
+    def(value, '__ob__', this)
+		this.walk(value)
+  }
+  
+  walk (obj: Object) {
+    const keys = Object.keys(obj)
+    for (let i = 0; i < keys.length; i++) {
+      defineReactive(obj, keys[i])
+    }
+  }
+}
+
+
+// src/core/util/lang.js
+export function def (obj: Object, key: string, val: any, enumerable?: boolean) {
+  Object.defineProperty(obj, key, {
+    value: val,
+    // 当且仅当该属性的 enumerable 键值为 true 时，该属性才会出现在对象的枚举属性中。
+    enumerable: !!enumerable,
+    // writable 为 true 时，属性的值才可以被修改
+    writable: true,
+    // configurable 为 true 时，才能被删除，该属性的描述符才能够被改变
+    configurable: true
+  })
+}
+
+```
+
+在 `Observer` 的构造函数里主要做了一下几步：
+
+1. 首先通过 `def` 函数，把 `__ob__` 属性添加到传入的 `value` 上，也就是添加到 `options.data` 上，表示当前属性是不是响应式数据
+2. 执行 `walk` 遍历 `data` ，把里面的每一项属性都传入 `defineReactive` 里，通过 `Object.defineProperty` 监听 `data` 的 `get set`
+
+```js
+export function defineReactive (
+  obj: Object,
+  key: string,
+  val: any,
+  customSetter?: ?Function,
+  shallow?: boolean
+) {
+  Object.defineProperty(obj, key, {
+    enumerable: true,
+    configurable: true,
+    get: function reactiveGetter () {
+      const value = getter ? getter.call(obj) : val
+      ...
+      return value
+    },
+    set: function reactiveSetter (newVal) {
+      const value = getter ? getter.call(obj) : val
+      ...
+      dep.notify()
+    }
+  }
+}
+```
+
+## 总结
 
 
 
