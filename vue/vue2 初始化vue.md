@@ -293,6 +293,7 @@ Vue.prototype.$mount = function (el) {
         // comments 是否保留注释 默认false 当设为 true 时，将会保留且渲染模板中的 HTML 注释。默认行为是舍弃它们。
         comments: options.comments
       }, this)
+  // 在这里吧render函数添加到了 vm.$options.render上
   options.render = render
 }
 ```

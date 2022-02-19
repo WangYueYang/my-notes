@@ -18,7 +18,7 @@ Vue.prototype._init = function (options?: Object) {
 }
 ```
 
- 在 `Vue._init` 函数里有一个 `initState` 函数，里面对 `data.props,methods` 做了初始化，
+ 在 `Vue._init` 函数里有一个 `initState` 函数，里面对 `data，props,methods` 做了初始化，
 
 ```js
 export function initState (vm: Component) {
