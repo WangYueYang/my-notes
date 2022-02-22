@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>栈</title>
+  </head>
+  <body>
+    概念: 1. 栈是一种特殊的列表 2.
+    栈是一种高效的数据结构，因为数据智能在栈顶删除或增加，操作很快 3.
+    栈被称为一种后入先出的数据结构 （LIFO） 4.
+    插入新元素又称作进栈，入栈，或压栈，从一个栈删除元素又称作出栈或退栈
+
+    <script>
+      function Stack() {
+        this.dataStore = []; // 保存栈内元素
+        this.top = 0; // 栈顶位置，标示可以插入新元素的位置，栈内压入元素该变量变大，元素出栈，变量变小
+        this.push = push; // 入栈操作
+        this.pop = pop; // 出栈操作
+        this.peek = peek; // return 栈顶元素
+        this.clear = clear; // 清空栈
+        this.length = length; // 栈的长度
+      }
+
+      function push(ele) {
+        // 这里进行后加操作,先吧 ele 赋值给 datap[0] 然后 top 再加一
+        this.dataStore[this.top++] = ele;
+      }
+
+      function pop() {
+        // console.log(--this.top);
+        if (!this.top) {
+          return false
+        }
+        const data = this.dataStore[--this.top]
+        this.dataStore.length = this.top
+        return data 
+      }
+
+      function peek() {
+        return this.dataStore[this.top -1]
+      }
+
+      function clear() {
+        // 栈顶指针为0时也代表这个栈已经被清空了，我们也可以删除原来栈里的数据
+        this.top = 0
+        this.dataStore.length = 0;
+      }
+
+      function length() {
+        return this.top;
+      }
+
+      // const stack = new Stack();
+      
+      // stack.push('入栈操作一')
+      // stack.push('入栈操作二')
+      // stack.push('入栈操作三')
+      // stack.push('入栈操作四')
+      // stack.push('入栈操作五')
+      
+      // console.log('出栈11', stack.pop())
+      // console.log('出栈22', stack.pop())
+      // console.log('出栈33', stack.pop())
+      // console.log('出栈44', stack.pop())
+      // console.log('出栈55', stack.pop())
+      // console.log(stack)
+      // stack.push('新的入栈')
+
+
+      //  例子: 回文算法  dad 1001 racecar
+      function isPalindrome(word) {
+        const s = new Stack();
+        // 遍历 word 的每一项，然后压入栈中
+        for (let i = 0; i < word.length; i++) {
+          s.push(word[i])
+        }
+        
+        let newWord = '';
+        // 每一次出栈，栈内元素的length 都会 -1，这里循环判断 length > 0 就可以
+        while (s.length() > 0) {
+          // 这里做出栈操作赋值给 newWord
+          newWord += s.pop() 
+        }
+
+        if (newWord === word) {
+          return true
+        }
+        return false 
+      }
+
+      const word = 'racecar'
+      console.log(isPalindrome(word))
+
+    </script>
+  </body>
+</html>
