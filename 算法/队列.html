@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>队列</title>
+</head>
+<body>
+  概念：
+    1. 队列是一种特殊的列表 
+    2. 队列可以想象成排队的人群
+    3. 队列只能在队尾插入元素，在队首删除元素，是一种先进先出(FIFO)的数据结构
+    4. 插入新元素叫入队，删除操作叫出队
+
+  优先队列：
+    在操作的时候就不用遵循先入先出的约定。
+
+    <script>
+      class Queue {
+        constructor() {
+          this.rank = 0; // 队列长度
+          this.dataStore = []; // 保存队列元素
+        }
+
+        enqueue(queue) {
+          this.dataStore[this.rank++] = queue
+        }
+
+        dequeue() {
+          --this.rank
+          return this.dataStore.shift()
+        }
+
+        //  查询队首
+        front() {
+          return this.dataStore[0]
+        }
+
+        // 查询队尾
+        back() {
+          return this.dataStore[this.rank -1]
+        }
+
+        // 是否是空队列
+        empty() {
+          return !(this.rank > 0)
+        }
+
+        toString() {
+          // return this.dataStore
+          let str = ''
+          this.dataStore.forEach(item => {
+            str += (item + "\n")
+          })
+          return str
+        }
+
+        newDequeue() {
+          let priority = 0;
+          this.dataStore.forEach((item, i) => {
+            if (this.dataStore[i].code > this.dataStore[priority].code) {
+              priority = i
+            }
+          })
+
+          return this.dataStore.splice(priority, 1)
+        }
+
+        newToString() {
+          let str = ''
+          this.dataStore.forEach(item => {
+            str += `${item.name}  code:  ${item.code}  \n` 
+          })
+          return str 
+        }
+      }
+
+      // const q = new Queue()
+      // q.enqueue('哈哈哈')
+      // q.enqueue('嘿嘿111')
+      // q.enqueue('嘿嘿222')
+      // q.enqueue('嘿嘿333')
+      // q.enqueue('嘿嘿444')
+      // console.log(q.toString())
+      // console.log('出对了')
+      // q.dequeue()
+      // console.log(q.toString())
+
+      // 优先队列
+      function Patient(name, code) {
+        this.name = name; 
+        this.code = code;
+      }
+
+      const nq = new Queue();
+      nq.enqueue(new Patient('哈哈哈11', 11));
+      nq.enqueue(new Patient('哈哈哈22', 22));
+      nq.enqueue(new Patient('哈哈哈33', 33));
+      nq.enqueue(new Patient('哈哈哈44', 66));
+      nq.enqueue(new Patient('哈哈哈55', 55));
+      console.log(nq.newToString())
+      nq.newDequeue()
+      console.log(nq.newToString())
+
+    </script>
+</body>
+</html>
