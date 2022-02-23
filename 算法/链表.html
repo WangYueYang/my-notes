@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>链表</title>
+  </head>
+  <body>
+    定义： 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+    <script>
+      // !注意 this.size++ 和 index = 0 的时候的判断！！！！！
+      var Node = function (val) {
+        this.val = val;
+        this.next = null;
+      };
+      var MyLinkedList = function () {
+        this.head = null;
+        this.size = 0;
+      };
+
+      /**
+       * @param {number} index
+       * @return {number}
+       */
+      MyLinkedList.prototype.get = function (index) {
+        if (index < 0 || index >= this.size) {
+          return -1;
+        }
+        let head = this.head;
+        if (index) {
+          while (index--) {
+            head = head.next;
+          }
+        }
+        return head.val;
+      };
+
+      /**
+       * @param {number} val
+       * @return {void}
+       */
+      MyLinkedList.prototype.addAtHead = function (val) {
+        let node = new Node(val);
+        node.next = this.head;
+        this.head = node;
+        this.size++;
+      };
+
+      /**
+       * @param {number} val
+       * @return {void}
+       */
+      MyLinkedList.prototype.addAtTail = function (val) {
+        let head = this.head;
+        let node = new Node(val);
+        if (!head) {
+          this.head = node;
+        } else {
+          while (head.next) {
+            head = head.next;
+          }
+          head.next = node;
+        }
+        this.size++;
+      };
+
+      /**
+       * @param {number} index
+       * @param {number} val
+       * @return {void}
+       */
+      MyLinkedList.prototype.addAtIndex = function (index, val) {
+        if (index > this.size) {
+          return;
+        }
+        if (index <= 0) {
+          this.addAtHead(val);
+        } else {
+          let node = new Node(val);
+          let head = this.head;
+          while (--index) {
+            head = head.next;
+          }
+          node.next = head.next;
+          head.next = node;
+        }
+
+        this.size++;
+      };
+
+      /**
+       * @param {number} index
+       * @return {void}
+       */
+      MyLinkedList.prototype.deleteAtIndex = function (index) {
+        if (index < 0 || index >= this.size) {
+          return;
+        }
+        if (!index) {
+          this.head = this.head.next;
+        } else {
+          let head = this.head;
+          while (--index) {
+            head = head.next;
+          }
+          head.next = head.next ? head.next.next : null;
+        }
+          this.size--;
+      };
+
+      /**
+       * Your MyLinkedList object will be instantiated and called as such:
+       * var obj = new MyLinkedList()
+       * var param_1 = obj.get(index)
+       * obj.addAtHead(val)
+       * obj.addAtTail(val)
+       * obj.addAtIndex(index,val)
+       * obj.deleteAtIndex(index)
+       */
+
+      let linkedList = new MyLinkedList();
+      // linkedList.addAtHead(1);
+      linkedList.addAtTail(1);
+      // linkedList.addAtIndex(0, 10);
+      // linkedList.addAtIndex(0, 20);
+      // linkedList.addAtIndex(1, 30);
+      // console.log(linkedList.get(0));
+      // linkedList.deleteAtIndex(1);
+      // console.log(linkedList.get(1));
+      console.log(linkedList.head, linkedList.size, 123);
+    </script>
+  </body>
+</html>
