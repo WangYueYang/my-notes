@@ -7,7 +7,23 @@
     <title>链表</title>
   </head>
   <body>
-    定义： 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+    定义： 
+    单向链表： 
+    function node(val) {
+      this.val = val;
+      this.next = null; // next 指向链表中的下一位
+    }
+    1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+
+    双向链表
+    function node(val) {
+      this.val = val;
+      this.prev = null; // 指向链表中的上一位
+      this.next = null;
+    }
+    1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 
+    1    2    3    4    5     6   7
+    1 <- 2 <- 3 <- 4 <- 5 <- 6 <- 7
     <script>
       // !注意 this.size++ 和 index = 0 的时候的判断！！！！！
       // 还有 --index 和 index--
