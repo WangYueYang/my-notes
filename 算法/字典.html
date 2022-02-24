@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>字典</title>
+</head>
+<body>
+  定义：
+    字典以一种键值对的形式存储数据, key value
+
+    <script>
+      // add(key,val)
+      // find(key)
+      // del(key)
+      // showAll()
+      // count()
+      // clear()
+      class Dictionary {
+        constructor() {
+          this.dataStore = new Array();
+        }
+        
+        add(key, val) {
+          this.dataStore[key] = val
+        }
+
+        find(key) {
+          return this.dataStore[key]
+        }
+
+        del(key) { 
+          delete this.dataStore[key]
+        }
+
+        showAll() {
+          const keys = Object.keys(this.dataStore)
+          for (let k in keys) {
+            console.log(`key: ${keys[k]} ---> val: ${this.dataStore[keys[k]]}`)
+          }
+        }
+
+        count() {
+          return Object.keys(this.dataStore).length
+        }
+
+        clear() {
+          const keys = Object.keys(this.dataStore)
+          for (let k in keys) {
+            delete this.dataStore[k] 
+          } 
+        }
+      }
+
+      const d = new Dictionary()
+      d.add('haha',123)
+      d.add('haha2',12223)
+      d.add('haha3',123333)
+      d.showAll()
+      console.log(d.find('haha2'))
+      console.log(d.count())
+      console.log(d)
+    </script>
+</body>
+</html>
