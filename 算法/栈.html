@@ -31,20 +31,20 @@
       function pop() {
         // console.log(--this.top);
         if (!this.top) {
-          return false
+          return false;
         }
-        const data = this.dataStore[--this.top]
-        this.dataStore.length = this.top
-        return data 
+        const data = this.dataStore[--this.top];
+        this.dataStore.length = this.top;
+        return data;
       }
 
       function peek() {
-        return this.dataStore[this.top -1]
+        return this.dataStore[this.top - 1];
       }
 
       function clear() {
         // 栈顶指针为0时也代表这个栈已经被清空了，我们也可以删除原来栈里的数据
-        this.top = 0
+        this.top = 0;
         this.dataStore.length = 0;
       }
 
@@ -53,13 +53,13 @@
       }
 
       // const stack = new Stack();
-      
+
       // stack.push('入栈操作一')
       // stack.push('入栈操作二')
       // stack.push('入栈操作三')
       // stack.push('入栈操作四')
       // stack.push('入栈操作五')
-      
+
       // console.log('出栈11', stack.pop())
       // console.log('出栈22', stack.pop())
       // console.log('出栈33', stack.pop())
@@ -68,31 +68,43 @@
       // console.log(stack)
       // stack.push('新的入栈')
 
-
       //  例子: 回文算法  dad 1001 racecar
       function isPalindrome(word) {
         const s = new Stack();
         // 遍历 word 的每一项，然后压入栈中
+
         for (let i = 0; i < word.length; i++) {
-          s.push(word[i])
+          s.push(word[i]);
         }
-        
+
         let newWord = '';
         // 每一次出栈，栈内元素的length 都会 -1，这里循环判断 length > 0 就可以
         while (s.length() > 0) {
           // 这里做出栈操作赋值给 newWord
-          newWord += s.pop() 
+          newWord += s.pop();
         }
 
         if (newWord === word) {
-          return true
+          return true;
         }
-        return false 
+        return false;
       }
 
-      const word = 'racecar'
-      console.log(isPalindrome(word))
+      const word = 'racecar';
+      console.log(isPalindrome(word));
 
+      function plusOne(nums) {
+        nums.sort();
+        for (let i = 0; i < nums.length; i++) {
+          console.log(nums, i)
+          if (nums[i] == nums[i + 1]) {
+            return true
+          }
+        }
+        return false;
+      }
+      var p = plusOne([2, 14, 18, 22, 22]);
+      console.log(p)
     </script>
   </body>
 </html>
