@@ -1,12 +1,12 @@
 我们从 React 的执行栈中可以把他的整个执行阶段大致分为三个部分，分别是：
 
-- create fiber 阶段
+- create fiber 阶段（mount）
 - render 阶段
 - commit 阶段
 
 ![image-20220310121153997](./img/image-20220310121153997.png)
 
-我们具体了解一下 create fiber 阶段。
+我们具体了解一下 create fiber（mount） 阶段。
 
 ![WX20220310-121500](/Users/wyy/Documents/wyy/study/github/my-notes/react/img/WX20220310-121500.png)
 
