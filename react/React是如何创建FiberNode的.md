@@ -189,7 +189,7 @@ export function createFiberRoot(
   const uninitializedFiber = createHostRootFiber(tag);
   root.current = uninitializedFiber;
   uninitializedFiber.stateNode = root;
-  // 更新相关，给 rootFiber 添加 updateQueue
+  // 更新相关，给 rootFiber 添加 updateQueue 对象
   initializeUpdateQueue(uninitializedFiber);
 
   return root;
@@ -232,6 +232,26 @@ const createFiber = function(
   return new FiberNode(tag, pendingProps, key, mode);
 };
 ```
+
+## initializeUpdateQueue 在 rootFiber 上添加 updateQueue 对象
+
+```js
+// react-reconciler/src/ReactUpdateQueue.old.js
+export function initializeUpdateQueue<State>(fiber: Fiber): void {
+  const queue: UpdateQueue<State> = {
+    baseState: fiber.memoizedState,
+    firstBaseUpdate: null,
+    lastBaseUpdate: null,
+    shared: {
+      pending: null,
+    },
+    effects: null,
+  };
+  fiber.updateQueue = queue;
+}
+```
+
+
 
 ## FiberNode
 
