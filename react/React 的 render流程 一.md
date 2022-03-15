@@ -51,7 +51,7 @@ updateContainer 的参数分别是：ReactElement（JSX），创建好的 FiberR
 2. `const eventTime = requestEventTime()` 声明了开始时间，用于在 scheduler 里做任务的优先级处理
 3. `const update = createUpdate(eventTime, lane)` 创建 update 对象用于 React 的状态更新
 4. `update.payload = {element}` 把传入的 JSX 赋值给 update.payload, 后面也是用于更新
-5. `enqueueUpdate(current, update)` 初次 render 的时候让创建的 update 和自己形成环状链表
+5. `enqueueUpdate(current, update)` 初次 render 的时候让创建的 update 和自己形成环状链表, 把 update 赋值到 current.updateQueue.shared
 6. `scheduleUpdateOnFiber(current, lane, eventTime);` 执行下一步操作
 
 ```js
@@ -145,4 +145,120 @@ function performSyncWorkOnRoot(root) {
   
 }
 ```
+
+## renderRootSync
+
+在上面的函数调用栈的截图中可以看到 renderRootSync 里调用了 workLoopSync 方法，但是在这个方法之前还有一个比较重要的流程是 React 第一次渲染的时候 renderRootSync 会判断 workInProgressRoot !== root 然后调用     prepareFreshStack  方法根据 rootFiber 上的值创建 workInProgress Fiber 然后赋值给全局的 workInProgress, 并把他们通过 alternate 属性相互关联起来。然后再执行 workLoopSync。在 workLoopSync 里面循环判断 wokInProgress !== null 调用 performUnitOfWork(workInProgress) 函数。而 performUnitOfWork 里会吧 workInProgress = workInProgress.next 。直到 next == null 的时候跳出循环。
+
+```js
+// react-reconciler/src/ReactFiberWorkLoop.old.js
+function renderRootSync(root: FiberRoot, lanes: Lanes) {
+  ...
+  if (workInProgressRoot !== root || workInProgressRootRenderLanes !== lanes) {
+    // createWorkInProgress
+    // 创建 fiber 赋值给 workInProgress， 把 current 上的属性也赋值给 workInProgress
+    // workInProgress.alternate = current; current.alternate = workInProgress; 通过 alternate 把 workInProgress 和 current 相互关联起来
+    prepareFreshStack(root, lanes);
+    startWorkOnPendingInteractions(root, lanes);
+  }
+  ...
+    do {
+    try {
+      workLoopSync();
+      break;
+    } catch (thrownValue) {
+      handleError(root, thrownValue);
+    }
+  } while (true);
+  ...
+}
+
+function workLoopSync() {
+  // Already timed out, so perform work without checking if we need to yield.
+  while (workInProgress !== null) {
+    performUnitOfWork(workInProgress);
+  }
+}
+```
+
+## 根据 current 创建 workInProgress Fiber
+
+首次渲染的时候 prepareFreshStack 会调用 createWorkInProgress 创建 workInProgress，createWorkInProgress 里首先会判断 rootFIber.alternate === null （是否有已有的 workInProgress）如果是的话则会创建新的 Fiber ，然后将传入的 current 的属性赋值给 workInProgress
+
+```js
+// react-reconciler/src/ReactFiberWorkLoop.old.js
+let workInProgress: Fiber | null = null;
+
+function prepareFreshStack(root: FiberRoot, lanes: Lanes) {
+  workInProgressRoot = root;
+  workInProgress = createWorkInProgress(root.current, null);
+}
+
+// react-reconciler/src/ReactFiber.old.js
+export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
+  let workInProgress = current.alternate;
+  if (workInProgress === null) {
+    // 创建 workInProgress Fiber
+    workInProgress = createFiber(
+      current.tag,
+      pendingProps,
+      current.key,
+      current.mode,
+    );
+    workInProgress.elementType = current.elementType;
+    workInProgress.type = current.type;
+    workInProgress.stateNode = current.stateNode;
+    // 通过 alternate 属性吧 workInProgress 和 rootFiber 互相关联
+    workInProgress.alternate = current;
+    current.alternate = workInProgress;
+   } else {
+    workInProgress.pendingProps = pendingProps;
+    // Needed because Blocks store data on type.
+    workInProgress.type = current.type;
+
+    // We already have an alternate.
+    // Reset the effect tag.
+    workInProgress.flags = NoFlags;
+
+    // The effect list is no longer valid.
+    workInProgress.nextEffect = null;
+    workInProgress.firstEffect = null;
+    workInProgress.lastEffect = null;
+   }
+  
+    workInProgress.childLanes = current.childLanes;
+    workInProgress.lanes = current.lanes;
+
+    workInProgress.child = current.child;
+    workInProgress.memoizedProps = current.memoizedProps;
+    workInProgress.memoizedState = current.memoizedState;
+    workInProgress.updateQueue = current.updateQueue;
+  
+  	workInProgress.sibling = current.sibling;
+    workInProgress.index = current.index;
+    workInProgress.ref = current.ref;
+  
+  	return workInProgress;
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
