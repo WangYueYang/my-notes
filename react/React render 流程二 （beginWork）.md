@@ -141,7 +141,7 @@ function reconcileSingleElement(
     }
 ```
 
-着一遍流程走完之后，根节点 HostRoot 的 child Fiber 就创建成功了（<App/>）并且把它赋值给 workInProgress，此时的 workInProgress  就是 <App/> 的 Fiber Node 。然后继续 workLoopSync 里的循环，并把创建好的 child Fiber 当作新的 workInprogress 继续创建他的 children Fiber。
+这一遍流程走完之后，根节点 HostRoot 的 child Fiber 就创建成功了（<App/>）并且把它赋值给 workInProgress，此时的 workInProgress  就是 <App/> 的 Fiber Node 。然后继续 workLoopSync 里的循环，并把创建好的 child Fiber 当作新的 workInprogress 继续创建他的 children Fiber。
 
 ```js
 function workLoopSync() {
@@ -368,9 +368,147 @@ createFiber 创建好 fiber 后再返回给当前的 workInProgress.child，至�
 
 ## 第三遍 beginWork render HostComponent
 
+第三次执行 beginWork 的时候，我们当前的 workInProgress 就是 <App/> 组件里的 <div className="app-root""></div> 的 FiberNode。此时的 workInProgress.tag == HostComponent 代表原生标签。然后执行 updateHostComponent
 
+```js
+function beginWork(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  renderLanes: Lanes,
+): Fiber | null {
+    switch (workInProgress.tag) {
+      case HostComponent:
+      	return updateHostComponent(current, workInProgress, renderLanes);
+    }
+  }
+```
 
+当 workInProgress 是原生标签的时候，nextChildren 取得就是他 props.children，然后在判断 nextChildren 是不是纯文本，如果是的话  nextChildren = null 意味着不会再创建 childrenFiber 了。不是的话就继续创建 childrenFiber，直到他的 props.children 是纯文本为止。
 
+```js
+// react-reconciler/src/ReactFiberBeginWork.old.js
+function updateHostComponent(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  renderLanes: Lanes,
+) {
+    ...
+    const type = workInProgress.type;
+    const nextProps = workInProgress.pendingProps;
+    const prevProps = current !== null ? current.memoizedProps : null;
+
+    // 拿到 Jsx 的 props.children 
+    let nextChildren = nextProps.children;
+    // 判断是不是纯文本
+    const isDirectTextChild = shouldSetTextContent(type, nextProps);
+    
+    if (isDirectTextChild) {
+      nextChildren = null;
+    }
+    ...
+    
+    reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+  	return workInProgress.child;
+  }
+
+// 接着还是 reconcileChildren 里判断是 mount 还是 update，首次 render 所以还是 mount
+export function reconcileChildren(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  nextChildren: any,
+  renderLanes: Lanes,
+) {
+  if (current === null) {
+    workInProgress.child = mountChildFibers(
+      workInProgress,
+      null,
+      nextChildren,
+      renderLanes,
+    );
+  }
+}
+```
+
+因为我们的 <App/> 组件长这个样子，所以这次的 nextChildren 是一个数组，那么就会进入到新的判断逻辑中去。 reconcileChildFibers  会通过 isArray 判断 newChild 是不是数组，然后进入到 reconcileChildrenArray 里，在这个函数里面有做一部分的 Diff 的东西，但是我们只关注第一次 render 的部分，可以先略过。
+
+```jsx
+class App extends React.Component {
+  render() {
+    return (
+      <div className="app-root">
+        <div>React Class Component</div>
+        <p><span>hahah</span></p>
+      </div>
+    );
+  }
+}
+```
+
+```js
+function reconcileChildFibers(
+    returnFiber: Fiber,
+    currentFirstChild: Fiber | null,
+    newChild: any,
+    lanes: Lanes,
+  ): Fiber | null {
+		...
+  
+  	if (isArray(newChild)) {
+      return reconcileChildrenArray(
+        returnFiber,
+        currentFirstChild,
+        newChild,
+        lanes,
+      );
+    }
+}
+```
+
+### reconcileChildrenArray render 阶段循环创建 childFiber
+
+他的主要逻辑就是遍历 newChildren 这个数组，每次循环的时候都通过 createChild 创建当前数组里每一项 children 的 FiberNode，然后把创建的第一个 childFiber 赋值给 resultingFirstChild，后面创建的 FiberNode 都通过 sibling 属性和前一个关联起来。最后把第一个 FiberNode 返回出去。这样这一层的所有子节点的 Fiber 就都创建好了，并且由 sibling 属性将他们链接了起来。
+
+```js
+// react-reconciler/src/ReactChildFiber.old.js
+function reconcileChildrenArray(
+    returnFiber: Fiber,
+    currentFirstChild: Fiber | null,
+    newChildren: Array<*>,
+    lanes: Lanes,
+  ): Fiber | null {
+ 	
+    let resultingFirstChild: Fiber | null = null;
+    let previousNewFiber: Fiber | null = null;
+
+    let oldFiber = currentFirstChild;
+    let lastPlacedIndex = 0;
+    let newIdx = 0;
+    let nextOldFiber = null;    
+      
+     ... 省略一部分 Diff 处理,第一次 render 的时候会直接跳过
+    
+     if (oldFiber === null) {
+      for (; newIdx < newChildren.length; newIdx++) {
+        // 根据 newChildren[newIdx] 上的属性创建 fiberNode
+        const newFiber = createChild(returnFiber, newChildren[newIdx], lanes);
+        if (newFiber === null) {
+          continue;
+        }
+        lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+        // 把 newChildren[0] 赋值给 resultingFirstChild，把剩下的赋值给 newFiber.sibling 
+        // resultingFirstChild 是第一个 newFiber, 剩余的都是 resultingFirstChild.sibling 
+        if (previousNewFiber === null) {
+          // TODO: Move out of the loop. This only happens for the first run.
+          resultingFirstChild = newFiber;
+        } else {
+          previousNewFiber.sibling = newFiber;
+        }
+        previousNewFiber = newFiber;
+      }
+      return resultingFirstChild;
+    }
+ }
+```
 
 
 
