@@ -51,7 +51,322 @@ function beginWork(
 
 ## updateHostRoot 创建子 Fiber 节点
 
-updateHostRoot 的主要工作内容就是给根节点的 hostRoot Fiber 创建子 Fiber，赋值给 workInProgress.child 并且返回给 next。
+首次 render 的时候 updateHostRoot 的主要工作内容就是给根节点的 hostRoot Fiber 创建子 Fiber，赋值给 workInProgress.child 并且返回给 next。整个 updateHostRoot 的调用栈如下图所示。
+
+其中比较重要的点有：
+
+1. 获取 updateQueue 里的 payload 也就是 之前赋值的 element JSX 赋值给 updateHostRoot 函数内声明的 nextChildren ，传给后面的函数，在后面会根据 nextChildren 上的 key, type, props 属性创建 Fiber
+2. reconcileChildren 里通过判断 current === null 来区别是 mount 的组件还是 update 的组件。生成当前 workInProgress.children 对于首次 render 还没有生成自己的 children，所以在 reconcileChildren 里不做 Diff 算法，直接创建子节点的 Fiber，并将子节点的 Fiber 通过 return 属性和 HostRoot Fiber 链接起来。
+3. 根据 element JSX（<App/>） 上的属性创建 Fiber （调用 createFiberFromElement 等一些列方法）
+
+![QQ20220316-111728](./img/QQ20220316-111728.png)
+
+```js
+// react-reconciler/src/ReactFiberBeginWork.old.js
+function updateHostRoot(current, workInProgress, renderLanes) {
+  ...
+  // <App> JSX
+  const nextChildren = nextState.element;
+  
+  ...
+  
+  // 里面判断 current ===null ？mountChildFibers ：reconcileChildFibers
+  reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+  ...
+  return workInProgress.child;
+}
+
+export function reconcileChildren(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  nextChildren: any,
+  renderLanes: Lanes,
+) {
+    if (current === null) {
+    // 对于mount的组件，他会创建新的子Fiber节点
+    workInProgress.child = mountChildFibers(
+      workInProgress,
+      null,
+      nextChildren,
+      renderLanes,
+    );
+  } else {
+	// 对于update组件会判断 current.child !== null 来做 Diff 或者直接创建子 Fiber
+    workInProgress.child = reconcileChildFibers(
+      workInProgress,
+      current.child,
+      nextChildren,
+      renderLanes,
+    );
+  }
+}
+
+
+// react-reconciler/src/ReactChildFiber.old.js
+function reconcileChildFibers(
+    returnFiber: Fiber,
+    currentFirstChild: Fiber | null,
+    newChild: any,
+    lanes: Lanes,
+  ): Fiber | null {
+			switch (newChild.$$typeof) {
+        case REACT_ELEMENT_TYPE:
+          return placeSingleChild(
+            reconcileSingleElement(
+              returnFiber,
+              currentFirstChild,
+              newChild,
+              lanes,
+            ),
+          );
+				......
+      }      
+}
+      
+function reconcileSingleElement(
+    returnFiber: Fiber,
+    currentFirstChild: Fiber | null,
+    element: ReactElement,
+    lanes: Lanes,
+  ): Fiber {
+      ......
+      // 根据 element 属性创建子 Fiber
+      const created = createFiberFromElement(element, returnFiber.mode, lanes);
+      // 有 Ref 的话在里面做一些赋值操作
+      created.ref = coerceRef(returnFiber, currentFirstChild, element);
+      // 连接父级 fiber
+      // 第一次 beginWork 的时候 returnFiber 是 rootFiber
+      created.return = returnFiber;
+      return created;
+    }
+```
+
+着一遍流程走完之后，根节点 HostRoot 的 child Fiber 就创建成功了（<App/>）并且把它赋值给 workInProgress，此时的 workInProgress  就是 <App/> 的 Fiber Node 。然后继续 workLoopSync 里的循环，并把创建好的 child Fiber 当作新的 workInprogress 继续创建他的 children Fiber。
+
+```js
+function workLoopSync() {
+  // Already timed out, so perform work without checking if we need to yield.
+  while (workInProgress !== null) {
+    performUnitOfWork(workInProgress);
+  }
+}
+
+function performUnitOfWork(unitOfWork: Fiber) {
+  ......
+  next = beginwork(current, unitOfWork, subtreeRenderLanes);
+  
+  if (next === null) {
+    // If this doesn't spawn new work, complete the current work.
+    completeUnitOfWork(unitOfWork);
+  } else {
+    // workInProgress = workInProgress.child 
+    // workLoopSync 里循环的时候会判断 workLoopSync !== null 直到这里的 next = null  workLoopSync 才会跳出循环
+    workInProgress = next;
+  }
+}
+```
+
+## 第二遍 beginWork 创建 <App/> 的 children Fiber
+
+还是相同的逻辑，循环执行 performUnitOfWork 开始 beginWork，判断当前 workInProgress.tag ，这次的 workInProgress 是 <App/> 的 Fiber，所以进入到 ClassComponent 的逻辑，执行 updateClassComponent。
+
+```js
+// react-reconciler/src/ReactFiberBeginWork.old.js
+function beginWork(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  renderLanes: Lanes,
+): Fiber | null {
+    ...
+    switch (workInProgress.tag) {
+      case ClassComponent: {
+      const Component = workInProgress.type;
+      const unresolvedProps = workInProgress.pendingProps;
+      const resolvedProps =
+        workInProgress.elementType === Component
+          ? unresolvedProps
+          : resolveDefaultProps(Component, unresolvedProps);
+      return updateClassComponent(
+        current,
+        workInProgress,
+        Component,
+        resolvedProps,
+        renderLanes,
+      );
+    }
+    }
+  }
+```
+
+第一次 render 执行 updateClassComponent 时会判断 `workInProgress.stateNode === null` 执行 constructClassInstance 和 mountClassInstance 方法。
+
+其中  constructClassInstance 最主要的操作是对 class App 执行了 new 操作，然后挂载到当前 workInProgress.stateNode 上。最后返回 new App 的结果。mountClassInstance 包含一些声明周期和 state 更新的操作。
+
+最终执行 finishClassComponent 方法，在这个方法里执行了 <App/> 组件的 render 方法，并赋值给了 nextChildren，然后就是执行 reconcileChildren 方法，把 nextChildren 传递进去，判断是否是 mount 还是 update，执行 mountChildFibers 创建子 Fiber 了。最后赋值给当前的 workInProgress.child。
+
+```js
+// react-reconciler/src/ReactFiberBeginWork.old.js
+function updateClassComponent(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  Component: any,
+  nextProps: any,
+  renderLanes: Lanes,
+) {
+    ...
+    const instance = workInProgress.stateNode;
+    let shouldUpdate;
+    if (instance === null) {
+      ...
+      constructClassInstance(workInProgress, Component, nextProps);
+      mountClassInstance(workInProgress, Component, nextProps, renderLanes);
+      shouldUpdate = true;
+    }
+    
+    ...
+    
+    const nextUnitOfWork = finishClassComponent(
+      current,
+      workInProgress,
+      Component,
+      shouldUpdate,
+      hasContext,
+      renderLanes,
+    );
+    return nextUnitOfWork
+  }
+
+function finishClassComponent(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  Component: any,
+  shouldUpdate: boolean,
+  hasContext: boolean,
+  renderLanes: Lanes,
+) {
+    ...
+    const instance = workInProgress.stateNode;
+    ...
+    nextChildren = instance.render();
+    ...
+    reconcileChildren(current, workInProgress, nextChildren, renderLanes);
+    ...
+    return workInProgress.child;
+  }
+
+export function reconcileChildren(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  nextChildren: any,
+  renderLanes: Lanes,
+) {
+  if (current === null) {
+    workInProgress.child = mountChildFibers(
+      workInProgress,
+      null,
+      nextChildren,
+      renderLanes,
+    );
+  }
+}
+
+// react-reconciler/src/ReactChildFiber.old.js
+function reconcileChildFibers(
+    returnFiber: Fiber,
+    currentFirstChild: Fiber | null,
+    newChild: any,
+    lanes: Lanes,
+  ): Fiber | null {
+  	...
+    switch (newChild.$$typeof) {
+      case REACT_ELEMENT_TYPE:
+          return placeSingleChild(
+            reconcileSingleElement(
+              returnFiber,
+              currentFirstChild,
+              newChild,
+              lanes,
+            ),
+          );
+      ...
+    }
+  }
+```
+
+### 创建 children Fiber
+
+在前面的操作中，React 对 class App 执行了 new 操作，并且执行了他的 render 方法，获取到了 App 的 JSX，并赋值给了 nextChildren，在后面的操作中会根据 nextChildren 上的 type, key 等属性创建子 Fiber
+
+```js
+// react-reconciler/src/ReactChildFiber.old.js
+function reconcileSingleElement(
+    returnFiber: Fiber,
+    currentFirstChild: Fiber | null,
+    element: ReactElement,
+    lanes: Lanes,
+  ): Fiber {
+   		...
+    	const created = createFiberFromElement(element, returnFiber.mode, lanes);
+      // 有 Ref 的话在里面做一些赋值操作
+      created.ref = coerceRef(returnFiber, currentFirstChild, element);
+      // 连接父级 fiber
+      created.return = returnFiber;
+      return created;
+  }
+
+// react-reconciler/src/ReactFiber.old.js
+export function createFiberFromElement(
+  element: ReactElement,
+  mode: TypeOfMode,
+  lanes: Lanes,
+): Fiber {
+  // 此时的 element 是 <App/> render() 返回的 JSX 是一群<div>
+  // type = 'div'
+  const type = element.type;
+  const key = element.key;
+  // 其余的 className, childrens 都在 element.props, 具体可以看 createElement 函数
+  const pendingProps = element.props;
+  const fiber = createFiberFromTypeAndProps(
+    type,
+    key,
+    pendingProps,
+    owner,
+    mode,
+    lanes,
+  );
+  return fiber;
+}
+
+export function createFiberFromTypeAndProps(
+  type: any, // React$ElementType
+  key: null | string,
+  pendingProps: any,
+  owner: null | Fiber,
+  mode: TypeOfMode,
+  lanes: Lanes,
+): Fiber {
+  let fiberTag = IndeterminateComponent;
+  ...
+  // 因为传进来的 type = element.type = 'div',所以这里的 fiberTag = HostComponent
+  // 表示是原声组件如 div, p , span  这种
+  if (typeof type === 'string') {
+    fiberTag = HostComponent;
+  }
+  
+  ...
+  
+  const fiber = createFiber(fiberTag, pendingProps, key, mode);
+  fiber.elementType = type;
+  fiber.type = resolvedType;
+  fiber.lanes = lanes;
+  
+  return fiber;
+}
+```
+
+createFiber 创建好 fiber 后再返回给当前的 workInProgress.child，至此第二遍的 beginWork 就走完了，此时的 worInProgress 就是 class App render() 后的 FiberNode，也就是最外层 div 对应的 FiberNode。这个时候他还有子节点没有创建对应的 FiberNode， 并且赋值后的 workInProgress !== null ，所以还需要继续循环执行 beginWork
+
+## 第三遍 beginWork render HostComponent
 
 
 

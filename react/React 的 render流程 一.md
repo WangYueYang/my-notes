@@ -1,3 +1,18 @@
+我们以这个 <App/> 来看一下 react 的渲染流程
+```js
+class App extends React.Component {
+  render() {
+    return (
+      <div className="app-root">
+        <div>React Class Component</div>
+        <p>hahah</p>
+      </div>
+    );
+  }
+}
+
+```
+
 ## updateContainer
 
 ReactDOM.render 方法里会执行 legacyRenderSubtreeIntoContainer 方法，第一次渲染的时候还没有创建 FiberRootNode，legacyRenderSubtreeIntoContainer 里会判断 `if(!root)`  来创建 FiberRootNode 和根节点的 rootFiber，创建完成后会执行 updateContainer，里面包含 render 阶段和 commit 阶段
