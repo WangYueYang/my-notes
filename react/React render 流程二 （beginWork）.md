@@ -494,7 +494,7 @@ function reconcileChildrenArray(
         if (newFiber === null) {
           continue;
         }
-        lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIdx);
+        
         // 把 newChildren[0] 赋值给 resultingFirstChild，把剩下的赋值给 newFiber.sibling 
         // resultingFirstChild 是第一个 newFiber, 剩余的都是 resultingFirstChild.sibling 
         if (previousNewFiber === null) {
@@ -510,11 +510,29 @@ function reconcileChildrenArray(
  }
 ```
 
+第三遍 beginWork 执行完成后，当前的 workInProgress 就就是 nextChild[0] 的 FiberNode，其他的同级兄弟 DOM 的 FiberNode 在 workInProgress.sibling 上。
 
+![QQ20220317-153247](./img/QQ20220317-153247.png)
 
+## 第四次 beginWork 对于纯文本节点的处理
 
+上一次的 beginWork 创建好了 `<div className="app-root"></div>` 的第一层子节点对应的 FiberNode 之后，继续向下执行深度优先遍历，开始第四次的 beginWork，这次要创建的是 `<div>React Class Component</div>` 内部纯文本的 FiberNode，而 react 会如何处理呢？
 
+首先依然还是走之前 beginWork 的逻辑，然后判断 workInProgress.tag，然后执行 updateHostComponent，但是这次会通过 shouldSetTextContent 判断出当前 workInProgress.props 里的 children 是否是纯文本，如果是的话 nextChildren 的值为 null。那么在后面的 `reconcileChildren` 逻辑中就不会去创建纯文本对应的 Fiber 了。
 
+那么这次的 beginWork 返回的值就 null，在 performUnitOfWork 中会判断 next === null 执行 completeUnitOfWork，开始 complete 阶段。
+
+```js
+// react-reconciler/src/ReactFiberWorkLoop.old.js
+function performUnitOfWork(unitOfWork: Fiber): void {
+  let next;
+  next = beginWork(current, unitOfWork, subtreeRenderLanes);
+	if (next === null) {
+    // If this doesn't spawn new work, complete the current work.
+    completeUnitOfWork(unitOfWork);
+  }
+}
+```
 
 
 
