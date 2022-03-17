@@ -1,4 +1,4 @@
-我们以这个 <App/> 来看一下 react 的渲染流程
+我们以这个 <App/> 为例子 来看一下 react 的渲染流程
 ```js
 class App extends React.Component {
   render() {
