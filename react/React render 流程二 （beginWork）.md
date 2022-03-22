@@ -187,13 +187,13 @@ function beginWork(
           ? unresolvedProps
           : resolveDefaultProps(Component, unresolvedProps);
       return updateClassComponent(
-        current,
-        workInProgress,
-        Component,
-        resolvedProps,
-        renderLanes,
-      );
-    }
+          current,
+          workInProgress,
+          Component,
+          resolvedProps,
+          renderLanes,
+        );
+      }
     }
   }
 ```

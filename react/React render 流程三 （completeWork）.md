@@ -184,7 +184,7 @@ p 标签的 completeWork 完成后，接着执行 `<div className="app-root"></d
 
 至此 render 阶段的 beginWork 和 completeWork 就结束了， workLoopSync 执行完毕后 break 出循环。
 
-声明了 finishedWork = root.current.alternate 也就是等于之前 render 阶段中构建好的 workInProgress tree。然后再挂在到 root （FiberRootNode）的 finishedWork 属性上。
+最后在 commit 阶段开始前声明了 finishedWork = root.current.alternate 也就是等于之前 render 阶段中构建好的 workInProgress tree。然后再挂在到 root （FiberRootNode）的 finishedWork 属性上。
 
 然后就开始 commit 阶段啦
 
