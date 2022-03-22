@@ -8,7 +8,7 @@
 
 我们具体了解一下 create fiber（mount） 阶段。
 
-![WX20220310-121500](/Users/wyy/Documents/wyy/study/github/my-notes/react/img/WX20220310-121500.png)
+![WX20220310-121500](./img/WX20220310-121500.png)
 
 从调用栈中可以看到他的函数调用顺序，然后我们具体看一下代码都做了什么事情
 
