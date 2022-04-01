@@ -123,6 +123,7 @@ export function createLegacyRoot(
   container: Container,
   options?: RootOptions,
 ): RootType {
+  // 当执行 ReactDOM.render 的时候是 legacy 模式，这里传入的 tag 就是 LegacyRoot
   return new ReactDOMBlockingRoot(container, LegacyRoot, options);
 }
 
@@ -165,7 +166,7 @@ export function createContainer(
 
 ## FiberRootNode 和 rootFiber
 
-createFiberRoot 函数里会通过 new FiberRootNode 创建出 fiberRootNode，以及通过 createHostRootFiber 函数创建 rootFiber。其中 fiberRootNode 是整个应用的根节点，并且应用中只有 一个 fiberRootNode，而 rootFiber 是 `<App/>` 所在组件树的根节点。他们的区别则是，在应用中我们可以通过 ReactDOM.render 渲染不同的组件树，他们会拥有不同的 rootFiber，但是在整个 react 应用中， fiberRootNode 只有一个。然后通过 fiberRootNode.current = rootFiber, rootFiber.stateNode = fiberRootNode 让他们互相指向对方。
+createFiberRoot 函数里会通过 new FiberRootNode 创建出 fiberRootNode，以及通过 createHostRootFiber 函数创建 rootFiber。其中 fiberRootNode 是整个应用的根节点，并且应用中只有 一个 fiberRootNode，而 rootFiber 是 `<App/>` 所在组件树的根节点也就是 HostRoot。他们的区别则是，在应用中我们可以通过 ReactDOM.render 渲染不同的组件树，他们会拥有不同的 rootFiber，但是在整个 react 应用中， fiberRootNode 只有一个。然后通过 fiberRootNode.current = rootFiber, rootFiber.stateNode = fiberRootNode 让他们互相指向对方。
 
 ```js
 // react-reconciler/src/ReactRiberRoot.old.js
@@ -218,7 +219,7 @@ export function createHostRootFiber(tag: RootTag): Fiber {
     // Without some nodes in the tree having empty base times.
     mode |= ProfileMode;
   }
-  // HostRoot = 3 代表根节点，可以嵌套在另一个节点里
+  // HostRoot = 3 创建 HostRoot Fiber
   return createFiber(HostRoot, null, null, mode);
 }
 
