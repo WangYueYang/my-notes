@@ -127,16 +127,12 @@ export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
   const pending = sharedQueue.pending;
   // 如果 pending == null 的话 让自己的 update 和自己形成环状链表
   if (pending === null) {
-    // 自己和自己形成一条环状链表
     update.next = update;
   } else {
     // 把pending.next 加入到链表尾部
     update.next = pending.next;
-    // 再和 update 又形成环状链表
     pending.next = update;
   }
-  // 把 update 复制到 sharedQueue.pending 上
-  // 此时的 pending 是一个 update 的环状链表，他的 payload 是 element JSX
   sharedQueue.pending = update;
 }
 ```

@@ -1,0 +1,192 @@
+还是以这个组件为例子，我们看看 state 是如何改变的
+
+```js
+class App extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      num: 0,
+    };
+  }
+
+  handleClick() {
+    this.setState({
+      num: 3,
+    });
+  }
+
+  render() {
+    return (
+      <div className="app-root" onClick={this.handleClick.bind(this)}>
+        Number {this.state.num}
+      </div>
+    );
+  }
+}
+```
+
+## enqueueSetState
+
+我们在 classComponent 里做 setState 操作时实际调用的是 this.updater.enqueueSteState 方法，他的主要作用是获取到当前组件的 Fiber 实例，然后将更新的 update state 加入到 Fiber 的 updateQueue 中。
+
+```js
+// react/src/ReactBaseClasses.js
+Component.prototype.setState = function (partialState, callback) {
+  this.updater.enqueueSetState(this, partialState, callback, 'setState');
+};
+
+// react-reconciler/src/ReactFiberClassComponent.old.js
+const classComponentUpdater = {
+  enqueueSetState(inst, payload, callback) {
+    // 获取当前组件 Fiber
+    const fiber = getInstance(inst);
+    const eventTime = requestEventTime();
+    const lane = requestUpdateLane(fiber);
+    // 创建 update 对象
+    const update = createUpdate(eventTime, lane);
+    // 把要修改的 state 赋值给 update.payload
+    update.payload = payload;
+    if (callback !== undefined && callback !== null) {
+      update.callback = callback;
+    }
+    // 加入到 enqueueUpdate 中
+    enqueueUpdate(fiber, update);
+    scheduleUpdateOnFiber(fiber, lane, eventTime);
+  },
+};
+
+// react-reconciler/src/ReactUpdateQueue.old.js
+export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
+  const updateQueue = fiber.updateQueue;
+  if (updateQueue === null) {
+    // Only occurs if the fiber has been unmounted.
+    return;
+  }
+
+  const sharedQueue: SharedQueue<State> = (updateQueue: any).shared;
+  const pending = sharedQueue.pending;
+  // 如果 pending == null 的话 让自己的 update 和自己形成环状链表
+  if (pending === null) {
+    update.next = update;
+  } else {
+    // 加入到链表头部
+    update.next = pending.next;
+    pending.next = update;
+  }
+  // 把 update 赋值到 sharedQueue.pending 上
+  sharedQueue.pending = update;
+}
+```
+
+## render 阶段
+
+在 performSyncWorkOnRoot 之前的 scheduleUpdateOnFiber 里会对优先级做一些处理，我们这里先略过，直接来看后面对 state 的处理。
+
+render 阶段中，因为 FIber 双缓存的特性，会根据 current tree 创建一颗新的 workInProgress tree。在第一次 beginWork 的时候，React 会根据 `!includesSomeLane(renderLanes, updateLanes)` 某些优先级调用 bailoutOnAlreadyFinishedWork 方法，复用原有的 current Fiber 对应的节点数据创建出 <App/> 的 Fiber 并通过 alternate 和 current Fiber 上对应的节点关联起来，最后将创建的 App 组件的 Fiber return 出去开始第二遍 beginWork
+
+在 App 的 beginWork 中和渲染的流程一样会执行 updateClassComponent，去获取当前 workInProgress.stateNode 也就是 App 实例，如果存在的话就会执行 updateClassInstance 函数
+
+## updateClassInstance 里的 processUpdateQueue
+
+首先会获取到 updateQueue 中的 baseUpdate 链表的头尾，然后声明变量 pendingQueue 获取 updateQueue 的 shared.pending 也就是做 enqueueUpdate 操作时候的那条 pendingQueue 链表，如果这条链表存在的话，将原有的 pendingQueue 清空，再拿到 pendingQueue 的首尾并把这条环状链表剪开。然后将 pendingQueue 添加到 baseUpdate 的 尾部。
+
+```js
+// react-reconciler/src/ReactUpdateQueue.old.js/processUpdateQueue
+
+const queue: UpdateQueue<State> = (workInProgress.updateQueue: any);
+let firstBaseUpdate = queue.firstBaseUpdate;
+let lastBaseUpdate = queue.lastBaseUpdate;
+
+let pendingQueue = queue.shared.pending;
+if (pendingQueue !== null) {
+  queue.shared.pending = null;
+
+  const lastPendingUpdate = pendingQueue;
+  const firstPendingUpdate = lastPendingUpdate.next;
+  // 把 update 的环状链表剪开
+  lastPendingUpdate.next = null;
+  // Append pending updates to base queue
+  // 将 pendingQueue 添加到 baseUpdate 链表的尾部
+  if (lastBaseUpdate === null) {
+    firstBaseUpdate = firstPendingUpdate;
+  } else {
+    lastBaseUpdate.next = firstPendingUpdate;
+  }
+  // lastBaseUpdate 直接指向 baseUpdate 链表的最尾部
+  lastBaseUpdate = lastPendingUpdate;
+}
+```
+
+接下来遍历 baseUpdate 链表，以 fiber.updateQueue.baseState 为初始 state，以此与遍历到的每个 update 计算并产生新的 state 。在 getStateFromUpdate 函数里通过判断参数 update （通过 createUpdate 函数创建的 update 对象）上的 tag 进行不同的 update 操作，如果 tag 是 UpdateState 的话，会从传入的 update.payload 上拿到新的 state 和之前的 state 做 `Object.assign({}, prevState, partialState)` 操作，最后将结果返回出去。
+
+```js
+// react-reconciler/src/ReactUpdateQueue.old.js/processUpdateQueue
+if (firstBaseUpdate !== null) {
+  let newState = queue.baseState;
+  let newLanes = NoLanes;
+
+  let newBaseState = null;
+  let newFirstBaseUpdate = null;
+  let newLastBaseUpdate = null;
+
+  let update = firstBaseUpdate;
+  do {
+    newState = getStateFromUpdate(
+      workInProgress,
+      queue,
+      update,
+      newState,
+      props,
+      instance
+    );
+
+    update = update.next;
+
+    if (update == null) {
+      pendingQueue = queue.shared.pending;
+      if (pendingQueue === null) {
+        break;
+      }
+    }
+  } while (true);
+}
+```
+
+获取到更新后到 state 后会添加到 workInProgress.memoizedState 上，而后续则会根据 memoizedState 的值来进行渲染。
+
+```js
+// react-reconciler/src/ReactUpdateQueue.old.js/processUpdateQueue
+if (newLastBaseUpdate === null) {
+  newBaseState = newState;
+}
+
+queue.baseState = ((newBaseState: any): State);
+queue.firstBaseUpdate = newFirstBaseUpdate;
+queue.lastBaseUpdate = newLastBaseUpdate;
+workInProgress.lanes = newLanes;
+workInProgress.memoizedState = newState;
+```
+
+## shouldUpdate & 更新 class state
+
+在获取到新的 state 后，react 会根据 checkHasForceUpdateAfterProcessing 和 checkHasForceUpdateAfterProcessing 来判断是否更新，再修改 class 实例上 state 的值。如果 class 组件上有更新相关的生命周期的话，会为 workInProgress.flags 打上 Update 的 tag，然后
+
+其中 checkHasForceUpdateAfterProcessing 会判断 Update 的 tag 是不是 FoceUpdate，而 checkShouldComponentUpdate 里会根据是否是 PureReactComponent 浅比较 state 和 props，或通过 shouldComponentUpdate 的返回值来判断是否更新，如果这两个都没有的话直接返回 true 打上 Update 的 tag。最终将 shouldUpdate 的结果返回出去。
+
+```js
+ const shouldUpdate =
+    checkHasForceUpdateAfterProcessing() ||
+    checkShouldComponentUpdate(
+      workInProgress,
+      ctor,
+      oldProps,
+      newProps,
+      oldState,
+      newState,
+      nextContext,
+    );
+```
+
+## state 更新后的 render
+
+执行完 updateClassInstance 后，会接着在 finishClassComponent 里执行 class 实例的 render 方法，因为在前一步里 class 实例的 state 已经改变了，所以在执行了 render 方法后返回的 react element 里的值也会发生变化，然后 react 会根据新的 render() 结果去做 diff ，根据已有的 current fiber 的 child  创建 workInProgress.child。继续 beginWork 的流程
