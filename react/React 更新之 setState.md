@@ -174,19 +174,41 @@ workInProgress.memoizedState = newState;
 其中 checkHasForceUpdateAfterProcessing 会判断 Update 的 tag 是不是 FoceUpdate，而 checkShouldComponentUpdate 里会根据是否是 PureReactComponent 浅比较 state 和 props，或通过 shouldComponentUpdate 的返回值来判断是否更新，如果这两个都没有的话直接返回 true 打上 Update 的 tag。最终将 shouldUpdate 的结果返回出去。
 
 ```js
- const shouldUpdate =
-    checkHasForceUpdateAfterProcessing() ||
-    checkShouldComponentUpdate(
-      workInProgress,
-      ctor,
-      oldProps,
-      newProps,
-      oldState,
-      newState,
-      nextContext,
-    );
+const shouldUpdate =
+  checkHasForceUpdateAfterProcessing() ||
+  checkShouldComponentUpdate(
+    workInProgress,
+    ctor,
+    oldProps,
+    newProps,
+    oldState,
+    newState,
+    nextContext
+  );
 ```
 
 ## state 更新后的 render
 
-执行完 updateClassInstance 后，会接着在 finishClassComponent 里执行 class 实例的 render 方法，因为在前一步里 class 实例的 state 已经改变了，所以在执行了 render 方法后返回的 react element 里的值也会发生变化，然后 react 会根据新的 render() 结果去做 diff ，根据已有的 current fiber 的 child  创建 workInProgress.child。继续 beginWork 的流程
+执行完 updateClassInstance 后，会接着在 finishClassComponent 里执行 class 实例的 render 方法，因为在前一步里 class 实例的 state 已经改变了，所以在执行了 render 方法后返回的 react element 里的 props.children 里的 num 就变成了 setState 更新后的值。接着复用原有的 current Fiber 创建新的 workInProgress Fiber 将新的 react element 的 props 赋值给 workInProgress.pendingProps。
+
+这时 `<div className="app-root">` 的 fiber node 的 pendingProps 上保存着更新后的 state。我们继续 render 阶段的流程。
+
+## div#app-root 里更新子 Fiber
+
+div#app-root 的 beginWork 里根据他自己对应的 workInProgress 的 pendingProps.children 来更新子 Fiber，关于里面的 Diff 操作我们先不用管，我们只需要知道因为 `this.state.num` 的值改变了，在这一步里 react 会复用之前 `this.state.num` 的 current fiber 创建新的 workInProgress fiber，同样将新的 `this.state.num` 的值添加到他自己的 workInProgress.pendingProps 上
+
+## 更新 workInProgress.memoizedProps
+
+每次 beginWork 结束后，会修改当前的 workInProgress.memoizedProps。 State.num 的 beginWork 的 memoizedProps 也是这个时候变成了 setState 后的值。
+
+```js
+unitOfWork.memoizedProps = unitOfWork.pendingProps;
+```
+
+## state.num 的 completeWork
+
+benginWork 执行完后，在 `state.num` 的 Fiber Node 的 completeWork 阶段，react 会从他的 Fiber Node 上获取 pendingProps（更新后的 state）和 memoizedProps （以前的 state）做对比，如果不想等的话，就会给他的 Fiber Node 上打上 Update 的 flags `workInProgress.flags |= Update`
+
+## commitMutationEffects 里进行 Update
+
+还记得之前在 wrkInProgress.flags 上打的 Update 标记吗， commit 阶段中的 commitMutationEffects 会根据 flags 来进行 Update 操作。然后判断 state.num 的 Fiber Node 的 tag 是 HostText。会从 Fiber 的 memoizedProps 获取到新的 text 然后使用 `dom.nodeValue = newText;` 来更新文本。这时候页面上的 num 就从 0 变成了 3。
