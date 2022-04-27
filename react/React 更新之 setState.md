@@ -169,7 +169,7 @@ workInProgress.memoizedState = newState;
 
 ## shouldUpdate & 更新 class state
 
-在获取到新的 state 后，react 会根据 checkHasForceUpdateAfterProcessing 和 checkHasForceUpdateAfterProcessing 来判断是否更新，再修改 class 实例上 state 的值。如果 class 组件上有更新相关的生命周期的话，会为 workInProgress.flags 打上 Update 的 tag，然后
+在获取到新的 state 后，react 会根据 checkHasForceUpdateAfterProcessing 和 checkHasForceUpdateAfterProcessing 来判断是否更新。以及修改 class 实例上 state 的值, 如果 class 组件上有更新相关的生命周期的话，会为 workInProgress.flags 打上 Update 的 tag.
 
 其中 checkHasForceUpdateAfterProcessing 会判断 Update 的 tag 是不是 FoceUpdate，而 checkShouldComponentUpdate 里会根据是否是 PureReactComponent 浅比较 state 和 props，或通过 shouldComponentUpdate 的返回值来判断是否更新，如果这两个都没有的话直接返回 true 打上 Update 的 tag。最终将 shouldUpdate 的结果返回出去。
 
@@ -185,6 +185,10 @@ const shouldUpdate =
     newState,
     nextContext
   );
+
+instance.props = newProps;
+instance.state = newState;
+instance.context = nextContext;
 ```
 
 ## state 更新后的 render
@@ -212,3 +216,16 @@ benginWork 执行完后，在 `state.num` 的 Fiber Node 的 completeWork 阶段
 ## commitMutationEffects 里进行 Update
 
 还记得之前在 wrkInProgress.flags 上打的 Update 标记吗， commit 阶段中的 commitMutationEffects 会根据 flags 来进行 Update 操作。然后判断 state.num 的 Fiber Node 的 tag 是 HostText。会从 Fiber 的 memoizedProps 获取到新的 text 然后使用 `dom.nodeValue = newText;` 来更新文本。这时候页面上的 num 就从 0 变成了 3。
+
+## 做个总结：
+
+1. 首先会将 setState 的值添加到当前组件 Fiber 的 pendingQueue 中
+2. 在 updateClassInstace 里 会吧 pendingQueue 这条环状链表剪开，然后连接到 baseUpdate 链表的尾部
+3. 遍历 baseUpdate 链表，以 fiber.updateQueue.baseState 为初始值和这条链表上的每一个 update 对象计算产生新的 state。（具体是 `Object.assign({}, oldState, newState)`）
+4. 把更新后的值添加到当前组件的 workInProgress.memoizedState
+5. 更新组件实例的 state `instance.state = newState` 并且如果组件有更新相关的生命周期 （componentDidUpdate，getSnapshotBeforeUpdate）的话会对 oldProps, oldState 和 newProps，newState 做浅比较，如果不想等的话会给 workInProgress.flags 打上 Update 或 Snapshot tag。
+6. 执行 render 方法，因为 state 改变了，所以通过 React.creatElement 返回的 react element 的 props.children 的值就是 setState 后的值，拿新的 react element 复用之前的 current fiber 去创建新的 Fiber，并且把更新后的 state 保存在创建的 Fiber.pendingProps 上
+7. 创建 `{this.state.num}` 对应的 Fiber ，同样也是将更新后的值保存在他的 Fiber.pendingProps 上
+8. beginWork 后，修改当前 workInProgress.menmoizedProps = workInProgress.pendingProps
+9. completeWork 阶段用 oldState 和 newState 做对比如果不想等的话给当前 wrokInProgress.flags 打上 Update 标记
+10. commit 阶段中的 commitMutationEffects 判断 workInProgress.flags 如果是 Update 的话做更新操作，对于 `{this.state,num}` 来说就直接使用 `DOM.nodeValue = newText` 来更新文本
