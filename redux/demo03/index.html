@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script type="module" src="./redux/index.js"></script>
+    <script type="module">
+      import { createStore , combineReducers } from './redux/index.js';
+      import counter from './reducers/counter.js'
+      import info from './reducers/info.js'
+      const reducer = combineReducers({ 
+        counter,
+        info
+      })
+      const initState = {
+        counter: {
+          count: 0
+        },
+        info: {
+          name: '',
+          age: 0
+        }
+      };
+      const store = createStore(reducer, initState);
+      store.subscribe(() => {
+        const state = store.getState();
+        console.log(state);
+      });
+
+      store.dispatch({
+        type: 'ADDCOUNT',
+        count: store.getState().count,
+      });
+
+      store.dispatch({
+        type: 'CHANGENAME',
+        name: 'wangyy'
+      })
+    </script>
+  </body>
+</html>
