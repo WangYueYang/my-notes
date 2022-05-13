@@ -223,9 +223,9 @@ benginWork 执行完后，在 `state.num` 的 Fiber Node 的 completeWork 阶段
 2. 在 updateClassInstace 里 会吧 pendingQueue 这条环状链表剪开，然后连接到 baseUpdate 链表的尾部
 3. 遍历 baseUpdate 链表，以 fiber.updateQueue.baseState 为初始值和这条链表上的每一个 update 对象计算产生新的 state。（具体是 `Object.assign({}, oldState, newState)`）
 4. 把更新后的值添加到当前组件的 workInProgress.memoizedState
-5. 更新组件实例的 state `instance.state = newState` 并且如果组件有更新相关的生命周期 （componentDidUpdate，getSnapshotBeforeUpdate）的话会对 oldProps, oldState 和 newProps，newState 做浅比较，如果不想等的话会给 workInProgress.flags 打上 Update 或 Snapshot tag。
+5. 更新组件实例的 state `instance.state = newState` 并且如果组件有更新相关的生命周期 （componentDidUpdate，getSnapshotBeforeUpdate）的话会对 oldProps, oldState 和 newProps，newState 做浅比较，如果不相等的话会给 workInProgress.flags 打上 Update 或 Snapshot tag。
 6. 执行 render 方法，因为 state 改变了，所以通过 React.creatElement 返回的 react element 的 props.children 的值就是 setState 后的值，拿新的 react element 复用之前的 current fiber 去创建新的 Fiber，并且把更新后的 state 保存在创建的 Fiber.pendingProps 上
 7. 创建 `{this.state.num}` 对应的 Fiber ，同样也是将更新后的值保存在他的 Fiber.pendingProps 上
 8. beginWork 后，修改当前 workInProgress.menmoizedProps = workInProgress.pendingProps
-9. completeWork 阶段用 oldState 和 newState 做对比如果不想等的话给当前 wrokInProgress.flags 打上 Update 标记
+9. completeWork 阶段用 oldState 和 newState 做对比如果不相等的话给当前 wrokInProgress.flags 打上 Update 标记
 10. commit 阶段中的 commitMutationEffects 判断 workInProgress.flags 如果是 Update 的话做更新操作，对于 `{this.state,num}` 来说就直接使用 `DOM.nodeValue = newText` 来更新文本
